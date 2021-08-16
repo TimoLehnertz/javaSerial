@@ -5,6 +5,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.Timer;
+
 import com.fazecast.jSerialComm.SerialPort;
 import com.fazecast.jSerialComm.SerialPortDataListener;
 import com.fazecast.jSerialComm.SerialPortEvent;
@@ -27,7 +29,7 @@ import com.fazecast.jSerialComm.SerialPortEvent;
  * @author Timo Lehnertz
  *
  */
-public class Serial implements AutoCloseable{
+public class Serial implements AutoCloseable {
 	
 	private List<SerialReceiveListener> receiveListeners = new ArrayList<>();
 	private SerialPort selectedPort = null;
@@ -35,6 +37,7 @@ public class Serial implements AutoCloseable{
 	private int bufferSize;
 	private Charset charset = StandardCharsets.UTF_8;
 	private byte[] termination = {0, 10, 11, 12, 13};
+	List<SerialOpenListener> openListeners = new ArrayList<>();
 	
 	public Serial() {
 		this(null);
@@ -55,7 +58,25 @@ public class Serial implements AutoCloseable{
 	}
 	
 	private static SerialPort[] getPorts() {
-		return SerialPort.getCommPorts();
+		SerialPort ports[] = SerialPort.getCommPorts();
+		List<SerialPort> cleaned = new ArrayList<>();
+		for (SerialPort serialPort : ports) {
+			boolean found = false;
+			for (SerialPort serialPort2 : cleaned) {
+				if(serialPort2.getSystemPortName().contentEquals(serialPort.getSystemPortName())) {
+					found = true;
+					break;
+				}
+			}
+			if(found) continue;
+			cleaned.add(serialPort);
+		}
+		
+		SerialPort[] arr = new SerialPort[cleaned.size()];
+		for (int i = 0; i < arr.length; i++) {
+			arr[i] = cleaned.get(i);
+		}
+		return arr;
 	}
 	
 	public byte[] getTermination() {
@@ -115,8 +136,10 @@ public class Serial implements AutoCloseable{
 			@Override
 			public void serialEvent(SerialPortEvent arg0) {
 				for (byte b : arg0.getReceivedData()) {
+//					System.out.println(b);
 					if(isTermination(b)) {
 						processBuffer();
+//						bufferSize = 0;
 					} else {
 						buffer[bufferSize] = b;
 						bufferSize++;
@@ -129,6 +152,13 @@ public class Serial implements AutoCloseable{
 				return SerialPort.LISTENING_EVENT_DATA_RECEIVED;
 			}
 		});
+//		Timer t = new Timer(500, e -> {
+			for (SerialOpenListener l : openListeners) {
+				l.deviceOpened();
+			}
+//			((Timer) e.getSource()).stop();
+//		});
+//		t.start();
 	}
 	
 	private boolean isTermination(byte b) {
@@ -172,5 +202,13 @@ public class Serial implements AutoCloseable{
 		}
 		selectedPort.writeBytes(msg, size);
 		return true;
+	}
+	
+	public boolean addOpenListeners(SerialOpenListener l) {
+		return openListeners.add(l);
+	}
+	
+	public boolean removeOpenListeners(SerialOpenListener l) {
+		return openListeners.remove(l);
 	}
 }

@@ -6,6 +6,6 @@
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry kind="lib" path="C:/Users/timol/eclipse-workspace-new/serial/jSerialComm-2.7.0.jar"/>
+	<classpathentry kind="lib" path="C:/Users/AlexL/git/javaSerial/serial/jSerialComm-2.7.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
