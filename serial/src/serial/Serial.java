@@ -117,6 +117,10 @@ public class Serial implements AutoCloseable {
 		port.closePort();
 	}
 	
+	public boolean isConnected() {
+		return selectedPort != null && selectedPort.isOpen();
+	}
+	
 	private void openPort(SerialPort port) {
 		if(selectedPort != null) {
 //			if(selectedPort.getSystemPortName().equals(port.getSystemPortName())) {
@@ -132,6 +136,8 @@ public class Serial implements AutoCloseable {
 		bufferSize = 0;
 		System.out.println("buffer size: " + port.getDeviceReadBufferSize());
 		System.out.println(port.bytesAvailable() + "Bytes available");
+		System.out.println("baud rate: " + port.getBaudRate());
+		port.setBaudRate(115200);
 		port.addDataListener(new SerialPortDataListener() {
 			@Override
 			public void serialEvent(SerialPortEvent arg0) {
@@ -152,13 +158,13 @@ public class Serial implements AutoCloseable {
 				return SerialPort.LISTENING_EVENT_DATA_RECEIVED;
 			}
 		});
-//		Timer t = new Timer(500, e -> {
+		Timer t = new Timer(500, e -> {
 			for (SerialOpenListener l : openListeners) {
 				l.deviceOpened();
 			}
-//			((Timer) e.getSource()).stop();
-//		});
-//		t.start();
+			((Timer) e.getSource()).stop();
+		});
+		t.start();
 	}
 	
 	private boolean isTermination(byte b) {
