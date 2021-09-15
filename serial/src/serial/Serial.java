@@ -132,10 +132,11 @@ public class Serial implements AutoCloseable {
 		selectedPort = port;
 		port.openPort();
 		System.out.println("initiating " + port);
-		buffer = new byte[port.getDeviceReadBufferSize()];
+		buffer = new byte[10000];
 		bufferSize = 0;
-		System.out.println("buffer size: " + port.getDeviceReadBufferSize());
-		System.out.println(port.bytesAvailable() + "Bytes available");
+		System.out.println("Read buffer size: " + port.getDeviceReadBufferSize());
+		System.out.println("Write buffer size: " + port.getDeviceWriteBufferSize());
+		System.out.println(port.bytesAvailable() + "bytes available");
 		System.out.println("baud rate: " + port.getBaudRate());
 		port.setBaudRate(115200);
 		port.addDataListener(new SerialPortDataListener() {
@@ -177,9 +178,11 @@ public class Serial implements AutoCloseable {
 	}
 	
 	private void processBuffer() {
+//		System.out.println("processing buffer " + bufferSize);
 		if(bufferSize == 0)
 			return;
 		String msg = new String(buffer, 0, bufferSize, charset);
+//		System.out.println("got: " + msg);
 		bufferSize = 0;
 		for (SerialReceiveListener listener : receiveListeners) {
 			listener.receive(msg);
