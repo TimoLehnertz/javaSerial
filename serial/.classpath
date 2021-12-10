@@ -7,5 +7,6 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="C:/Users/timol/git/javaSerial/serial/jSerialComm-2.7.0.jar"/>
+	<classpathentry combineaccessrules="false" kind="src" path="/maths"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

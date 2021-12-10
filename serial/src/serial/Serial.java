@@ -32,6 +32,7 @@ import com.fazecast.jSerialComm.SerialPortEvent;
 public class Serial implements AutoCloseable {
 	
 	private List<SerialReceiveListener> receiveListeners = new ArrayList<>();
+	private List<SerialByteReceiveListener> byteListeners = new ArrayList<>();
 	private SerialPort selectedPort = null;
 	private byte[] buffer;
 	private int bufferSize;
@@ -46,6 +47,13 @@ public class Serial implements AutoCloseable {
 	public Serial(String port) {
 		super();
 		selectPort(port);
+	}
+	
+	public void printPorts() {
+		System.out.println("Available ports:");
+		for (PortInfo port : getSerialPorts()) {
+			System.out.println("\t" + port.getSystemPortName() + " " + port.getDescriptivePortName() + " " + port.getPortDescription());
+		}
 	}
 	
 	public static List<PortInfo> getSerialPorts() {
@@ -95,6 +103,14 @@ public class Serial implements AutoCloseable {
 		return receiveListeners.remove(l);
 	}
 	
+	public boolean addByteReceiveListener(SerialByteReceiveListener l) {
+		return byteListeners.add(l);
+	}
+	
+	public boolean removeByteReceiveListener(SerialByteReceiveListener l) {
+		return byteListeners.remove(l);
+	}
+	
 	private SerialPort getPort(String name) {
 		if(name == null) return null;
 		SerialPort[] ports = getPorts();
@@ -103,6 +119,7 @@ public class Serial implements AutoCloseable {
 				return port;
 			}
 		}
+		System.err.println("no port");
 		return null;
 	}
 	public boolean selectPort(String name) {
@@ -123,12 +140,9 @@ public class Serial implements AutoCloseable {
 	
 	private void openPort(SerialPort port) {
 		if(selectedPort != null) {
-//			if(selectedPort.getSystemPortName().equals(port.getSystemPortName())) {
-//				System.out.println("same");
-//				return;
-//			}
 			closePort(selectedPort);
 		}
+		System.out.println(port.getDescriptivePortName());
 		selectedPort = port;
 		port.openPort();
 		System.out.println("initiating " + port);
@@ -138,15 +152,16 @@ public class Serial implements AutoCloseable {
 		System.out.println("Write buffer size: " + port.getDeviceWriteBufferSize());
 		System.out.println(port.bytesAvailable() + "bytes available");
 		System.out.println("baud rate: " + port.getBaudRate());
-		port.setBaudRate(115200);
+//		port.setBaudRate(115200);
 		port.addDataListener(new SerialPortDataListener() {
 			@Override
 			public void serialEvent(SerialPortEvent arg0) {
 				for (byte b : arg0.getReceivedData()) {
-//					System.out.println(b);
+					for (SerialByteReceiveListener l : byteListeners) {
+						l.byteReceived(b & 0xff); // conversion from signed to unsigned
+					}
 					if(isTermination(b)) {
 						processBuffer();
-//						bufferSize = 0;
 					} else {
 						buffer[bufferSize] = b;
 						bufferSize++;
@@ -159,7 +174,7 @@ public class Serial implements AutoCloseable {
 				return SerialPort.LISTENING_EVENT_DATA_RECEIVED;
 			}
 		});
-		Timer t = new Timer(500, e -> {
+		Timer t = new Timer(1000, e -> {
 			for (SerialOpenListener l : openListeners) {
 				l.deviceOpened();
 			}
@@ -178,11 +193,10 @@ public class Serial implements AutoCloseable {
 	}
 	
 	private void processBuffer() {
-//		System.out.println("processing buffer " + bufferSize);
 		if(bufferSize == 0)
 			return;
 		String msg = new String(buffer, 0, bufferSize, charset);
-//		System.out.println("got: " + msg);
+//		System.out.println("received: " + msg);
 		bufferSize = 0;
 		for (SerialReceiveListener listener : receiveListeners) {
 			listener.receive(msg);
@@ -201,16 +215,27 @@ public class Serial implements AutoCloseable {
 		return print(msg.getBytes(charset), msg.length());
 	}
 	
-	public boolean print(String msg) {
+	public synchronized boolean print(String msg) {
 		return print(msg.getBytes(charset), msg.length() + 1);
 	}
 	
-	public boolean print(byte[] msg, int size) {
+	public synchronized boolean print(byte[] msg, int size) {
 		if(selectedPort == null) {
+			System.out.println("no port");
 			return false;
 		}
 		selectedPort.writeBytes(msg, size);
 		return true;
+	}
+	
+//	public synchronized void write(int b) {
+//		if(b > 127) b = b - 127;
+//		byte[] bytes = {b};
+//		selectedPort.writeBytes(bytes, 1);
+//	}
+	
+	public int available() {
+		return selectedPort.bytesAvailable();
 	}
 	
 	public boolean addOpenListeners(SerialOpenListener l) {
