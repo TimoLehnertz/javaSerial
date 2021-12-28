@@ -40,6 +40,12 @@ public class Serial implements AutoCloseable {
 	private byte[] termination = {0, 10, 11, 12, 13};
 	List<SerialOpenListener> openListeners = new ArrayList<>();
 	
+	public void setBaudRate(int rate) {
+		if(selectedPort != null) {
+			selectedPort.setBaudRate(rate);
+		}
+	}
+	
 	public Serial() {
 		this(null);
 	}
@@ -157,8 +163,10 @@ public class Serial implements AutoCloseable {
 			@Override
 			public void serialEvent(SerialPortEvent arg0) {
 				for (byte b : arg0.getReceivedData()) {
+//					System.out.println(b);
 					for (SerialByteReceiveListener l : byteListeners) {
-						l.byteReceived(b & 0xff); // conversion from signed to unsigned
+						l.byteReceived(b); // conversion from signed to unsigned
+//						l.byteReceived(b & 0xff); // conversion from signed to unsigned
 					}
 					if(isTermination(b)) {
 						processBuffer();
@@ -174,7 +182,7 @@ public class Serial implements AutoCloseable {
 				return SerialPort.LISTENING_EVENT_DATA_RECEIVED;
 			}
 		});
-		Timer t = new Timer(1000, e -> {
+		Timer t = new Timer(2000, e -> {
 			for (SerialOpenListener l : openListeners) {
 				l.deviceOpened();
 			}
@@ -217,6 +225,10 @@ public class Serial implements AutoCloseable {
 	
 	public synchronized boolean print(String msg) {
 		return print(msg.getBytes(charset), msg.length() + 1);
+	}
+	
+	public synchronized boolean print(byte[] msg) {
+		return print(msg, msg.length);
 	}
 	
 	public synchronized boolean print(byte[] msg, int size) {
